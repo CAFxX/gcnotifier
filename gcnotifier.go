@@ -28,5 +28,17 @@ func finalizer(obj interface{}) {
 	case s.gcCh <- struct{}{}:
 	default:
 	}
+	// we get here only if the channel was not closed
 	runtime.SetFinalizer(s, finalizer)
+}
+
+// AfterGCUntilReachable is like AfterGC, but the channel will be closed when
+// the object supplied as argument is garbage collected. No finalizer should be
+// set on the object before or after calling this method. Pay attention to not
+// inadvertently keep the object alive (e.g. by referencing it in a callback or
+// goroutine) or the object may never be collected.
+func AfterGCUntilCollected(obj interface{}) <-chan struct {
+  gcCh := AfterGC()
+	runtime.SetFinalizer(obj, func() { close(goCh) })
+	return goCh
 }
