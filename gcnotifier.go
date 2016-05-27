@@ -19,6 +19,7 @@ import "runtime"
 // the garbage collector runs.
 type GCNotifier struct {
 	gcCh chan struct{}
+	doneCh chan struct{}
 }
 
 // AfterGC returns a channel that will receive a notification after every GC
@@ -30,31 +31,40 @@ func (n *GCNotifier) AfterGC() <-chan struct{} {
 
 // Close will stop and release all resources associated with the GCNotifier
 func (n *GCNotifier) Close() {
-	close(n.gcCh)
+	select {
+	case n.doneCh <- struct{}{}:
+	default:
+	}
 }
 
 // New creates and starts a new GCNotifier
 func New() *GCNotifier {
 	gcCh := make(chan struct{}, 1)
-	runtime.SetFinalizer(&sentinel{gcCh: gcCh}, finalizer)
-	return &GCNotifier{gcCh: gcCh}
+	doneCh := make(chan struct{}, 1)
+	runtime.SetFinalizer(&sentinel{gcCh: gcCh, doneCh: doneCh}, finalizer)
+	return &GCNotifier{gcCh: gcCh, doneCh: doneCh}
 }
 
 type sentinel struct {
 	gcCh chan struct{}
+	doneCh chan struct{}
 }
 
 func finalizer(obj interface{}) {
-	defer recover() // writing to a closed channel will panic
-
+	// check if we have to shutdown
 	select {
-	case obj.(*sentinel).gcCh <- struct{}{}:
-		// notification sent: if the channel is closed the line above will panic, so
-		// we'll end up in the defer, skipping the SetFinalizer below
+	case <-obj.(*sentinel).doneCh:
+		close(obj.(*sentinel).gcCh)
+		return
 	default:
-		// the channel already contains a notification, simply drop the new one
 	}
 
-	// we get here only if the channel was not closed
+	// send the notification
+	select {
+	case obj.(*sentinel).gcCh <- struct{}{}:
+	default:
+	}
+
+	// re-arm the finalizer
 	runtime.SetFinalizer(obj, finalizer)
 }
