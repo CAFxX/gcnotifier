@@ -12,8 +12,8 @@ func TestAfterGC(t *testing.T) {
 	go func() {
 		M := &runtime.MemStats{}
 		NumGC := uint32(0)
-		gcCh := AfterGC()
-		for range gcCh {
+		gcn := New()
+		for range gcn.AfterGC() {
 			runtime.ReadMemStats(M)
 			NumGC += 1
 			if NumGC != M.NumGC {
@@ -21,7 +21,7 @@ func TestAfterGC(t *testing.T) {
 			}
 			if NumGC > 500 {
 				doneCh <- struct{}{}
-				close(gcCh)
+				gcn.Close()
 				return
 			}
 		}
