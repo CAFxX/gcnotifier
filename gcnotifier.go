@@ -6,7 +6,6 @@
 // notification should try to avoid allocations as much as possible, or at the
 // very least that the amount of new memory allocated is significantly smaller
 // than the amount of memory that has been "freed" by your code.
-
 package gcnotifier
 
 import "runtime"
