@@ -22,8 +22,8 @@ type GCNotifier struct {
 }
 
 // AfterGC returns a channel that will receive a notification after every GC
-// run. If a notification is not consumed before another GC runs only one of the
-// two notifications is sent. To stop the notifications call the Close() method.
+// run. No further notifications will be sent until the previous notification
+// has been consumed. To stop the notifications call the Close() method.
 func (n *GCNotifier) AfterGC() <-chan struct{} {
 	return n.gcCh
 }
@@ -49,7 +49,7 @@ func finalizer(obj interface{}) {
 
 	select {
 	case obj.(*sentinel).gcCh <- struct{}{}:
-		// notification sent. if the channel is closed the line above will panic, so
+		// notification sent: if the channel is closed the line above will panic, so
 		// we'll end up in the defer, skipping the SetFinalizer below
 	default:
 		// the channel already contains a notification, simply drop the new one
