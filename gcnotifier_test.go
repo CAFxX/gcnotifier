@@ -20,11 +20,11 @@ func TestAfterGC(t *testing.T) {
 				t.Fatal("Skipped a GC notification")
 			}
 			if NumGC > 500 {
-				doneCh <- struct{}{}
 				gcn.Close()
-				return
+				gcn.Close() // harmless, just for testing
 			}
 		}
+		doneCh <- struct{}{}
 	}()
 
 	for {
@@ -36,5 +36,4 @@ func TestAfterGC(t *testing.T) {
 			return
 		}
 	}
-
 }

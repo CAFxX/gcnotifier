@@ -45,10 +45,7 @@ func New() *GCNotifier {
 	return &GCNotifier{gcCh: gcCh, doneCh: doneCh}
 }
 
-type sentinel struct {
-	gcCh chan struct{}
-	doneCh chan struct{}
-}
+type sentinel GCNotifier
 
 func finalizer(obj interface{}) {
 	// check if we have to shutdown
