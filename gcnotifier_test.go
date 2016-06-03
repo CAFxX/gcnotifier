@@ -39,7 +39,7 @@ func TestAfterGC(t *testing.T) {
 	}
 }
 
-// ExampleAfterGC implements a time-based buffering io.Writer: data sent over
+// Example implements a simple time-based buffering io.Writer: data sent over
 // dataCh is buffered for up to 100ms, then flushed out in a single call to
 // out.Write and the buffer is reused. If GC runs, the buffer is flushed and
 // then discarded so that it can be collected during the next GC run. The
@@ -48,7 +48,7 @@ func TestAfterGC(t *testing.T) {
 // perform asynchronous flushes, properly signal completions and propagate
 // errors, adaptively preallocate the buffer based on the previous capacity,
 // etc.)
-func ExampleAfterGC(t *testing.T) {
+func Example() {
 	dataCh := make(chan []byte)
 	flushCh := time.Tick(100 * time.Millisecond)
 	doneCh := make(chan struct{})
@@ -82,7 +82,7 @@ func ExampleAfterGC(t *testing.T) {
 		}
 	}()
 
-	for i := 0; i < 1<<16; i++ {
+	for i := 0; i < 1<<20; i++ {
 		dataCh <- make([]byte, 1024)
 	}
 	doneCh <- struct{}{}
