@@ -18,7 +18,7 @@ import "runtime"
 // GCNotifier allows your code to control and receive notifications every time
 // the garbage collector runs.
 type GCNotifier struct {
-	gcCh chan struct{}
+	gcCh   chan struct{}
 	doneCh chan struct{}
 }
 
