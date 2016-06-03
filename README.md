@@ -14,6 +14,9 @@ notification should try to avoid allocations as much as possible, or at the
 very least make sure that the amount of new memory allocated is significantly
 smaller than the amount of memory that has been "freed" by your code.
 
+For a simple example of how to use it have a look at `Example()` in
+[gcnotifier_test.go](gcnotifier_test.go).
+
 [Documentation](https://godoc.org/github.com/CAFxX/gcnotifier)
 
 # License
