@@ -29,12 +29,12 @@ an associated finalizer](https://golang.org/pkg/runtime/#SetFinalizer).
 
 The `SetFinalizer` documentation notes that [there is no guarantee that
 finalizers will run before a program exits]
-(https://golang.org/pkg/runtime/#SetFinalizer). Finalizers won't run only when
-the runtime shuts down (GC doesn't run in this case because the whole process
-will die soon and all associated resources will be freed by the OS anyway) so
-`gcnotifier` correctly does not notify of GC in this case. Finalizers can also
-not run for other reasons (e.g. zero-sized or package-level objects) that don't
-apply to `gcnotifier`.
+(https://golang.org/pkg/runtime/#SetFinalizer). This means that finalizers won't
+run when the runtime shuts down (GC doesn't run in this case because the whole
+process will die soon and all associated resources will be freed by the OS
+anyway) so `gcnotifier` correctly does not notify of GC in this case. Finalizers
+can also not run for other reasons (e.g. zero-sized or package-level objects)
+that don't apply to `gcnotifier`.
 
 The only other case in which a notification will not be sent by gcnotifier is if
 your code hasn't consumed a previously-sent notification.
