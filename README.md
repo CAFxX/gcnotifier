@@ -4,6 +4,9 @@ gcnotifier provides a way to receive notifications after every run of the
 garbage collector (GC). Knowing when GC runs is useful to instruct your code to
 free additional memory resources that it may be using.
 
+[![GoDoc](https://godoc.org/github.com/CAFxX/gcnotifier?status.svg)](http://godoc.org/github.com/CAFxX/gcnotifier)
+[![GoCover](http://gocover.io/_badge/github.com/CAFxX/gcnotifier)](http://gocover.io/github.com/CAFxX/gcnotifier)
+
 ## Why?
 The common use case for gcnotifier is when you have a custom pool of objects:
 instead of setting a maximum size to your pool you can leave it unbounded and
