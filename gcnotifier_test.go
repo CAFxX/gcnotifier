@@ -20,7 +20,7 @@ func TestAfterGC(t *testing.T) {
 			if NumGC != M.NumGC {
 				t.Fatal("Skipped a GC notification")
 			}
-			if NumGC > 500 {
+			if NumGC >= 500 {
 				gcn.Close()
 				gcn.Close() // harmless, just for testing
 			}
