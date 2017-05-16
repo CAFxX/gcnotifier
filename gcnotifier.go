@@ -4,15 +4,16 @@
 // using.
 //
 // A common use case for this is when you have custom data structures (e.g.
-// buffers, rings, trees, pools, ...): instead of setting a maximum size to your
-// data structure you can leave it unbounded and then drop all (or some) of the
-// allocated-but-unused slots after every GC run (e.g. sync.Pool drops all
-// allocated-but-unused objects in the pool during GC).
+// buffers, caches, rings, trees, pools, ...): instead of setting a maximum size
+// to your data structure you can leave it unbounded and then drop all (or some)
+// of the allocated-but-unused slots after every GC run (e.g. sync.Pool drops
+// all allocated-but-unused objects in the pool during GC).
 //
 // To minimize the load on the GC the code that runs after receiving the
 // notification should try to avoid allocations as much as possible, or at the
 // very least make sure that the amount of new memory allocated is significantly
-// smaller than the amount of memory that has been "freed" by your code.
+// smaller than the amount of memory that has been "freed" in response to the
+// notification.
 //
 // GCNotifier guarantees to send a notification after every GC cycle completes.
 // Note that the Go runtime does not guarantee that the GC will run:
@@ -46,8 +47,10 @@ func (n *GCNotifier) AfterGC() <-chan struct{} {
 }
 
 // Close will stop and release all resources associated with the GCNotifier. It
-// is not required to call Close explicitely: the GCNotifier will eventually be
-// garbage collected anyway :)
+// is not required to call Close explicitly: when the GCNotifier object is
+// garbage collected Close is called implicitly.
+// If you don't call Close explicitly make sure not to accidently maintain the
+// GCNotifier object alive.
 func (n *GCNotifier) Close() {
 	autoclose(n.n)
 }
@@ -73,17 +76,19 @@ func New() *GCNotifier {
 }
 
 func finalizer(obj interface{}) {
+	s := obj.(*sentinel)
+
 	// check if we have to shutdown
 	select {
-	case <-obj.(*sentinel).doneCh:
-		close(obj.(*sentinel).gcCh)
+	case <-s.doneCh:
+		close(s.gcCh)
 		return
 	default:
 	}
 
 	// send the notification
 	select {
-	case obj.(*sentinel).gcCh <- struct{}{}:
+	case s.gcCh <- struct{}{}:
 	default:
 		// drop it if there's already an unread notification in gcCh
 	}

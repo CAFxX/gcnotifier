@@ -22,7 +22,7 @@ func TestAfterGC(t *testing.T) {
 			}
 			if NumGC >= 500 {
 				gcn.Close()
-				gcn.Close() // harmless, just for testing
+				gcn.Close() // harmless, just for testing repeated Close()
 			}
 		}
 		doneCh <- struct{}{}
@@ -39,6 +39,30 @@ func TestAfterGC(t *testing.T) {
 	}
 }
 
+func TestAutoclose(t *testing.T) {
+	count := 10000
+	done := make(chan struct{})
+	go func() {
+		for i := 0; i < count; i++ {
+			gcn := New().AfterGC()
+			go func() {
+				for range gcn {
+				}
+				// to reach here autoclose() must have been called
+				done <- struct{}{}
+			}()
+		}
+	}()
+	for i := 0; i < count; {
+		select {
+		case <-done:
+			i++
+		default:
+			runtime.GC() // required to quickly trigger autoclose()
+		}
+	}
+}
+
 // Example implements a simple time-based buffering io.Writer: data sent over
 // dataCh is buffered for up to 100ms, then flushed out in a single call to
 // out.Write and the buffer is reused. If GC runs, the buffer is flushed and
@@ -50,33 +74,42 @@ func TestAfterGC(t *testing.T) {
 // etc.)
 func Example() {
 	dataCh := make(chan []byte)
-	flushCh := time.Tick(100 * time.Millisecond)
 	doneCh := make(chan struct{})
 
 	out := ioutil.Discard
 
 	go func() {
 		var buf []byte
-
+		var tick <-chan time.Time
 		gcn := New()
-		defer gcn.Close()
 
 		for {
 			select {
 			case data := <-dataCh:
+				if tick == nil {
+					tick = time.After(100 * time.Millisecond)
+				}
 				// received data to write to the buffer
 				buf = append(buf, data...)
-			case <-flushCh:
+			case <-tick:
 				// time to flush the buffer (but reuse it for the next writes)
-				out.Write(buf)
-				buf = buf[:0]
+				if len(buf) > 0 {
+					out.Write(buf)
+					buf = buf[:0]
+				}
+				tick = nil
 			case <-gcn.AfterGC():
 				// GC just ran: flush and then drop the buffer
-				out.Write(buf)
+				if len(buf) > 0 {
+					out.Write(buf)
+				}
 				buf = nil
+				tick = nil
 			case <-doneCh:
 				// close the writer: flush the buffer and return
-				out.Write(buf)
+				if len(buf) > 0 {
+					out.Write(buf)
+				}
 				return
 			}
 		}
