@@ -57,9 +57,9 @@ func (n *GCNotifier) Close() {
 
 // autoclose is both called explicitely via Close or when the GCNotifier is
 // garbage collected
-func autoclose(obj interface{}) {
+func autoclose(n *gcnotifier) {
 	select {
-	case obj.(*gcnotifier).doneCh <- struct{}{}:
+	case n.doneCh <- struct{}{}:
 	default:
 	}
 }
@@ -70,14 +70,14 @@ func New() *GCNotifier {
 		gcCh:   make(chan struct{}, 1),
 		doneCh: make(chan struct{}, 1),
 	}
+	// sentinel is dead immediately after the call to SetFinalizer
 	runtime.SetFinalizer(&sentinel{gcCh: n.gcCh, doneCh: n.doneCh}, finalizer)
+	// n will be dead when the GCNotifier that wraps it (see the return) is dead
 	runtime.SetFinalizer(n, autoclose)
 	return &GCNotifier{n: n}
 }
 
-func finalizer(obj interface{}) {
-	s := obj.(*sentinel)
-
+func finalizer(s *sentinel) {
 	// check if we have to shutdown
 	select {
 	case <-s.doneCh:
@@ -93,6 +93,6 @@ func finalizer(obj interface{}) {
 		// drop it if there's already an unread notification in gcCh
 	}
 
-	// re-arm the finalizer
-	runtime.SetFinalizer(obj, finalizer)
+	// rearm the finalizer
+	runtime.SetFinalizer(s, finalizer)
 }
