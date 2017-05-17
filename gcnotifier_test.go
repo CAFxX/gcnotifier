@@ -22,7 +22,6 @@ func TestAfterGC(t *testing.T) {
 			}
 			if NumGC >= 500 {
 				gcn.Close()
-				gcn.Close() // harmless, just for testing repeated Close()
 			}
 		}
 		doneCh <- struct{}{}
@@ -37,6 +36,12 @@ func TestAfterGC(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestDoubleClose(t *testing.T) {
+	gcn := New()
+	gcn.Close()
+	gcn.Close() // no-op
 }
 
 func TestAutoclose(t *testing.T) {
