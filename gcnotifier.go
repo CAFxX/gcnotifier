@@ -38,10 +38,13 @@ type sentinel gcnotifier
 
 // AfterGC returns the channel that will receive a notification after every GC
 // run. No further notifications will be sent until the previous notification
-// has been consumed. To stop the notifications call the Close() method. The
-// channel is unique to a single GCNotifier object: use dedicated GCNotifiers
-// if you need to listen for GC notifications in multiple receivers at the same
-// time.
+// has been consumed. To stop notifications immediately call the Close() method.
+// Otherwise notifications will continue until the GCNotifier object itself is
+// garbage collected. Note that the channel returned by AfterGC will be closed
+// only when GCNotifier is garbage collected.
+// The channel is unique to a single GCNotifier object: use dedicated
+// GCNotifiers if you need to listen for GC notifications in multiple receivers
+// at the same time.
 func (n *GCNotifier) AfterGC() <-chan struct{} {
 	return n.n.gcCh
 }
@@ -74,6 +77,8 @@ func New() *GCNotifier {
 	runtime.SetFinalizer(&sentinel{gcCh: n.gcCh, doneCh: n.doneCh}, finalizer)
 	// n will be dead when the GCNotifier that wraps it (see the return) is dead
 	runtime.SetFinalizer(n, autoclose)
+	// we wrap the internal gcnotifier object in a GCNotifier so that we can
+	// safely call autoclose when the GCNotifier becomes unreachable
 	return &GCNotifier{n: n}
 }
 
