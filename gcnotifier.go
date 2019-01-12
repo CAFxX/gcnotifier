@@ -67,7 +67,8 @@ func autoclose(n *gcnotifier) {
 	}
 }
 
-// New creates and arms a new GCNotifier
+// New creates and arms a new GCNotifier. The *GCNotifier object returned by 
+// New() must be kept alive until you need to receive the notifications.
 func New() *GCNotifier {
 	n := &gcnotifier{
 		gcCh:   make(chan struct{}, 1),
