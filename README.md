@@ -30,8 +30,43 @@ specifically there is no guarantee that a GC will run before the program
 terminates.
 
 ## How to use it
-For a simple example of how to use it have a look at `Example()` in
-[gcnotifier_test.go](gcnotifier_test.go). For details have a look at the
+The simplest use of this library is as follows:
+
+```
+gcn := gcnotifier.New()
+for range gcn.AfterGC() {
+  // this code will be executed after every GC cycle
+}
+```
+
+As written, the loop above will never terminate, so it is mostly useful if
+you have global caches that persist for the whole duration of the process.
+
+If you want to ensure the loop terminates (e.g. because you only need the
+notifications for the lifetime of a different object) you can call the 
+`Close()` method:
+
+```
+gcn := gcnotifier.New()
+go func() {
+  for range gcn.AfterGC() {
+    // this code will be executed after every GC cycle
+    // until Close() is called
+  }
+}()
+
+// later, or elsewhere in your code
+gcn.Close() // the loop above will terminate some time after this call
+```
+
+Note that if a loop iteration takes longer than the interval between two GC
+cycles it is possible that one notification will be dropped. Followup
+notifications will be still received correctly.
+
+For a more complex example of how to use it have a look at `Example()` in
+[gcnotifier_test.go](gcnotifier_test.go). 
+
+For details have a look at the
 [documentation](https://godoc.org/github.com/CAFxX/gcnotifier).
 
 ## How it works
