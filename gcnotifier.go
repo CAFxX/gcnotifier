@@ -67,8 +67,7 @@ func autoclose(n *gcnotifier) {
 	}
 }
 
-// New creates and arms a new GCNotifier. The *GCNotifier object returned by 
-// New() must be kept alive until you need to receive the notifications.
+// New creates and arms a new GCNotifier.
 func New() *GCNotifier {
 	n := &gcnotifier{
 		gcCh:   make(chan struct{}, 1),
@@ -76,7 +75,7 @@ func New() *GCNotifier {
 	}
 	// sentinel is dead immediately after the call to SetFinalizer
 	runtime.SetFinalizer(&sentinel{gcCh: n.gcCh, doneCh: n.doneCh}, finalizer)
-	// n will be dead when the GCNotifier that wraps it (see the return) is dead
+	// n will be dead when the GCNotifier that wraps it (see the return below) is dead
 	runtime.SetFinalizer(n, autoclose)
 	// we wrap the internal gcnotifier object in a GCNotifier so that we can
 	// safely call autoclose when the GCNotifier becomes unreachable
