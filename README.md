@@ -43,9 +43,9 @@ runtime.KeepAlive(gcn) // or store gcn somewhere to keep it alive
 As written, the loop above will never terminate, so it is mostly useful if
 you have global caches that persist for the whole duration of the process.
 
-Note that the AfterGC() call does not keep `gcn` alive. `gcn` will automatically
-get closed if it's garbage collected. So if `gcn` is not kept alive, the loop
-will terminate unexpectedly. 
+Note that the `AfterGC()` call is not guarantee to keep `gcn` alive. `gcn` and any channel
+returned by `AfterGC()` will automatically get closed if `gcn` is garbage collected.
+So if `gcn` is not kept alive, the `for` loop will terminate unexpectedly. 
 
 If you want to ensure the loop above terminates (e.g. because you only need the
 notifications for the lifetime of a different object) you can call the 
