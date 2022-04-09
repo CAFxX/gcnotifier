@@ -37,12 +37,17 @@ gcn := gcnotifier.New()
 for range gcn.AfterGC() {
   // this code will be executed after every GC cycle
 }
+runtime.KeepAlive(gcn) // or store gcn somewhere to keep it alive
 ```
 
 As written, the loop above will never terminate, so it is mostly useful if
 you have global caches that persist for the whole duration of the process.
 
-If you want to ensure the loop terminates (e.g. because you only need the
+Note that the AfterGC() call does not keep `gcn` alive. `gcn` will automatically
+get closed if it's garbage collected. So if `gcn` is not kept alive, the loop
+will terminate unexpectedly. 
+
+If you want to ensure the loop above terminates (e.g. because you only need the
 notifications for the lifetime of a different object) you can call the 
 `Close()` method:
 
