@@ -22,11 +22,7 @@ func (p *ptrrst) run(n <-chan struct{}) {
 
 var gpr ptrrst
 
-type atomicPointer[T any] interface {
-	Store(*T)
-}
-
-func Add[T any](ptr atomicPointer[T]) {
+func Add[T any](ptr interface{ Store(*T) }) {
 	if ptr == nil {
 		panic("nil pointer")
 	}
@@ -42,13 +38,13 @@ func Add[T any](ptr atomicPointer[T]) {
 	}
 
 	if _, exists := gpr.m[ptr]; exists {
-		panic("pointer already added")
+		panic("duplicated pointer")
 	}
 
 	gpr.m[ptr] = func() { ptr.Store(nil) }
 }
 
-func Remove[T any](ptr atomicPointer[T]) {
+func Remove[T any](ptr interface{ Store(*T) }) {
 	if ptr == nil {
 		panic("nil pointer")
 	}
