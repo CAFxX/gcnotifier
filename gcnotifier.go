@@ -18,23 +18,21 @@
 // GCNotifier guarantees to send a notification after every GC cycle completes.
 // Note that the Go runtime does not guarantee that the GC will run:
 // specifically there is no guarantee that a GC will run before the program
-// terminates.
+// terminates (either because the program terminates before a GC cycle completes,
+// or because GC itself is disabled).
 package gcnotifier
 
-import "runtime"
+import (
+	"runtime"
+	"sync/atomic"
+)
 
 // GCNotifier allows your code to control and receive notifications every time
 // the garbage collector runs.
 type GCNotifier struct {
-	n *gcnotifier
+	close func()
+	ch    chan struct{}
 }
-
-type gcnotifier struct {
-	doneCh chan struct{}
-	gcCh   chan struct{}
-}
-
-type sentinel gcnotifier
 
 // AfterGC returns the channel that will receive a notification after every GC
 // run. No further notifications will be sent until the previous notification
@@ -46,7 +44,7 @@ type sentinel gcnotifier
 // GCNotifiers if you need to listen for GC notifications in multiple receivers
 // at the same time.
 func (n *GCNotifier) AfterGC() <-chan struct{} {
-	return n.n.gcCh
+	return n.ch
 }
 
 // Close will stop and release all resources associated with the GCNotifier. It
@@ -55,49 +53,55 @@ func (n *GCNotifier) AfterGC() <-chan struct{} {
 // If you don't call Close explicitly make sure not to accidently maintain the
 // GCNotifier object alive.
 func (n *GCNotifier) Close() {
-	autoclose(n.n)
-}
-
-// autoclose is both called explicitely via Close or when the GCNotifier is
-// garbage collected
-func autoclose(n *gcnotifier) {
-	select {
-	case n.doneCh <- struct{}{}:
-	default:
-	}
+	n.close()
 }
 
 // New creates and arms a new GCNotifier.
 func New() *GCNotifier {
-	n := &gcnotifier{
-		gcCh:   make(chan struct{}, 1),
-		doneCh: make(chan struct{}, 1),
+	n := &GCNotifier{
+		ch: make(chan struct{}, 1),
 	}
-	// sentinel is dead immediately after the call to SetFinalizer
-	runtime.SetFinalizer(&sentinel{gcCh: n.gcCh, doneCh: n.doneCh}, finalizer)
-	// n will be dead when the GCNotifier that wraps it (see the return below) is dead
-	runtime.SetFinalizer(n, autoclose)
-	// we wrap the internal gcnotifier object in a GCNotifier so that we can
-	// safely call autoclose when the GCNotifier becomes unreachable
-	return &GCNotifier{n: n}
+	n.close = AfterGC(func() {
+		select {
+		case n.ch <- struct{}{}:
+		default:
+		}
+	})
+	runtime.SetFinalizer(n, func(n *GCNotifier) {
+		n.Close()
+	})
+	return n
 }
 
-func finalizer(s *sentinel) {
-	// check if we have to shutdown
-	select {
-	case <-s.doneCh:
-		close(s.gcCh)
-		return
-	default:
-	}
+// AfterGC executes the provided function after each GC cycle.
+//
+// This is a low-level interface, so the provided function must
+// follow the same considerations that apply to finalizers passed
+// to runtime.SetFinalizer. If the provided function can block
+// or take significant time to execute, the provided function
+// should start a goroutine and execute the code inside of it.
+// If the provided function panics the whole process will be
+// terminated.
+//
+// The returned function must be called to stop the notifications.
+// If the returned function is not called, the provided function
+// will continue to be called until the process exits.
+//
+// For a safer alternative, use GCNotifier instead.
+func AfterGC(fn func()) func() {
+	stop := uint32(0)
 
-	// send the notification
-	select {
-	case s.gcCh <- struct{}{}:
-	default:
-		// drop it if there's already an unread notification in gcCh
+	var finalizer func(*[16]byte)
+	finalizer = func(s *[16]byte) {
+		if atomic.LoadUint32(&stop) != 0 {
+			return
+		}
+		runtime.SetFinalizer(s, finalizer)
+		fn()
 	}
+	runtime.SetFinalizer(new([16]byte), finalizer)
 
-	// rearm the finalizer
-	runtime.SetFinalizer(s, finalizer)
+	return func() {
+		atomic.StoreUint32(&stop, 1)
+	}
 }
